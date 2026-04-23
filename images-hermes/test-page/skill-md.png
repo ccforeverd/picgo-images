@@ -1,0 +1,68 @@
+---
+name: browser-to-vocs-mdx
+title: Convert Web Content to Vocs MDX
+skillVersion: 1.0
+description: Extract content from a live browser page and convert it to an MDX file in a Vocs documentation site, including sidebar navigation updates.
+triggers:
+  - user wants to save a web article as MDX
+  - user asks to convert browser page content to docs
+  - adding new documentation page from web source
+---
+
+# Convert Web Content to Vocs MDX
+
+## Prerequisites
+- User must have a Vocs docs site in a pnpm monorepo
+- Browser CDP connection must be active (user starts Chrome with `--remote-debugging-port=9222`)
+
+## Step 1: Read the Browser Page
+1. Confirm the browser is connected: `browser_console` with `window.location.href`
+2. Extract the page text/content:
+   - Use `browser_console` with JS to extract `document.querySelector('article').innerText` or similar
+   - If the page is long/complex, use `browser_snapshot(full=true)` for structured content
+3. Note the page title, author, date, and original URL
+
+## Step 2: Choose the Destination
+1. Determine the appropriate category under `apps/vocs/docs/pages/<Category>/`
+2. Check existing files in that directory for naming conventions
+3. Create a kebab-case filename, e.g., `sdd-spec-driven-development.mdx`
+
+## Step 3: Create the MDX File
+Format the content with:
+```mdx
+---
+date: YYYY-MM-DD
+title: <Page Title>
+description: <Short description>
+---
+
+import { EndOfFile } from '@/components/EndOfFile'
+
+# <Page Title>
+
+<article content...>
+
+<EndOfFile originLink="<original URL>" />
+```
+
+Guidelines:
+- Convert bullet points (`•`) to Markdown lists (`-`)
+- Preserve code blocks with language tags
+- Clean up ads, comments, and interactive widgets from the source
+- Add the `EndOfFile` component with the original link
+
+## Step 4: Update Sidebar Navigation
+1. Open `apps/vocs/docs/config/sidebar/index.ts`
+2. Find the matching category in `sidebarOrigin`
+3. Add a new item with `text` and `link` pointing to the new page path (relative to `docs/pages/`)
+
+## Step 5: Preview (if possible)
+1. Run `pnpm dev` in `apps/vocs/`
+2. Navigate to `http://localhost:5200/<path>`
+3. If Node.js version is incompatible (vocs 1.4.1+ requires Node 22+), inform the user
+
+## Pitfalls
+- Vocs 1.4.1 requires Node.js 22+ due to `Array.fromAsync` and `node:fs.glob` usage
+- On Node 20, `pnpm dev` will fail with `SyntaxError: The requested module 'node:fs' does not provide an export named 'globSync'` or `TypeError: Array.fromAsync is not a function`
+- Do NOT attempt extensive node_modules patching; the `Array.fromAsync` API cannot be polyfilled in Node 20
+- Browser CDP connection may drop if the user closes Chrome or the gateway resets
